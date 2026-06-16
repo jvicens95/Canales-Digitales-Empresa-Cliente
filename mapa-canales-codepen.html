@@ -1,0 +1,157 @@
+<style>
+*{box-sizing:border-box}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+
+.map-wrap{padding:1rem 0 1.5rem;font-family:system-ui,-apple-system,sans-serif;color:#1a1a18}
+.map-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:1.25rem;flex-wrap:wrap}
+.map-title{font-size:15px;font-weight:500;color:#1a1a18;margin:0 0 4px}
+.map-sub{font-size:13px;color:#73726c;margin:0}
+.layer-pills{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.layer-pill{font-size:11px;font-weight:500;padding:3px 10px;border-radius:99px;border:0.5px solid #c8c7bf;color:#73726c;background:#f1efe8;cursor:default}
+.layer-pill.active{background:#E1F5EE;color:#085041;border-color:#9FE1CB}
+.layer-pill.locked{opacity:0.45}
+
+.cat-block{margin-bottom:10px}
+.cat-label{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:#9c9a92;margin:0 0 6px}
+.canal-grid{display:grid;gap:7px}
+.canal-grid-2{grid-template-columns:1fr 1fr}
+.canal-grid-3{grid-template-columns:1fr 1fr 1fr}
+
+.canal-card{border-radius:10px;border:0.5px solid #e0dfd8;padding:11px 13px;cursor:default;transition:background 0.15s;position:relative;background:#fff}
+.canal-card.done{border-color:#9FE1CB;background:#E1F5EE;cursor:pointer}
+.canal-card.done:hover{background:#c8f0e1}
+.canal-card.soon{opacity:0.55}
+.canal-name{font-size:13px;font-weight:500;color:#1a1a18;margin:0 0 2px}
+.canal-card.done .canal-name{color:#085041}
+.canal-desc{font-size:11px;color:#73726c;margin:0;line-height:1.4}
+.canal-card.done .canal-desc{color:#0F6E56}
+.canal-badge{position:absolute;top:8px;right:9px;font-size:10px;font-weight:500;padding:1px 7px;border-radius:99px}
+.badge-done{background:#0F6E56;color:#E1F5EE}
+.badge-soon{background:#f1efe8;color:#9c9a92;border:0.5px solid #c8c7bf}
+
+.progress-bar-wrap{margin:1rem 0 0;background:#f1efe8;border-radius:99px;height:5px;overflow:hidden}
+.progress-bar{height:5px;border-radius:99px;background:#1D9E75;transition:width 0.4s}
+.progress-label{font-size:11px;color:#9c9a92;margin:5px 0 0}
+
+@media(max-width:480px){
+  .canal-grid-2,.canal-grid-3{grid-template-columns:1fr}
+  .map-header{flex-direction:column}
+}
+</style>
+
+<h2 class="sr-only">Mapa interactivo de canales digitales empresa-cliente</h2>
+
+<div class="map-wrap">
+  <div class="map-header">
+    <div>
+      <p class="map-title">Canales digitales empresa-cliente</p>
+      <p class="map-sub">Guía completa · Serie de 12 artículos</p>
+    </div>
+    <div>
+      <p class="cat-label" style="margin-bottom:5px">Capas publicadas</p>
+      <div class="layer-pills" id="layer-pills"></div>
+    </div>
+  </div>
+
+  <div id="canal-map"></div>
+
+  <div class="progress-bar-wrap">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
+  <p class="progress-label" id="progress-label"></p>
+</div>
+
+<script>
+const LAYERS = [
+  { id:'canales',  label:'Canales',      active:true  },
+  { id:'casos',    label:'Casos de uso', active:false },
+  { id:'mockups',  label:'Mockups',      active:false },
+  { id:'flujos',   label:'Macroflujos',  active:false },
+  { id:'metricas', label:'Métricas',     active:false },
+];
+
+const CATS = [
+  {
+    label:'Mensajería', cols:2,
+    canales:[
+      { id:'whatsapp', name:'WhatsApp Business API', desc:'Conversacional · Notificaciones · Bots', url:'https://tu-substack.com/whatsapp', done:true },
+      { id:'sms',      name:'SMS',                   desc:'Alcance universal · Transaccional',      url:null, done:false },
+      { id:'telegram', name:'Telegram',               desc:'Bots · Canales · Comunidades',           url:null, done:false },
+      { id:'rcs',      name:'RCS',                    desc:'SMS enriquecido · Android',              url:null, done:false },
+      { id:'ig-dm',    name:'Instagram DM',           desc:'Visual · Social · Joven',                url:null, done:false },
+      { id:'fb-msg',   name:'Facebook Messenger',     desc:'B2C · Automatizable',                    url:null, done:false },
+    ]
+  },
+  {
+    label:'Email', cols:3,
+    canales:[
+      { id:'email-tx',  name:'Email transaccional', desc:'Confirmaciones · OTPs',   url:null, done:false },
+      { id:'email-mkt', name:'Email marketing',     desc:'Newsletters · Campañas',  url:null, done:false },
+      { id:'email-cs',  name:'Email de soporte',    desc:'Asíncrono · Formal',      url:null, done:false },
+    ]
+  },
+  {
+    label:'Redes sociales', cols:2,
+    canales:[
+      { id:'ig',       name:'Instagram',   desc:'Stories · Reels · DM',          url:null, done:false },
+      { id:'linkedin', name:'LinkedIn',    desc:'B2B · InMail',                   url:null, done:false },
+      { id:'tiktok',   name:'TikTok',      desc:'Vídeo corto · Gen Z',            url:null, done:false },
+      { id:'twitter',  name:'X / Twitter', desc:'Tiempo real · Soporte público',  url:null, done:false },
+    ]
+  },
+  {
+    label:'Voz y vídeo', cols:2,
+    canales:[
+      { id:'voip',      name:'VoIP / Call center', desc:'Enrutamiento · IVR · Agentes', url:null, done:false },
+      { id:'video',     name:'Videollamada',        desc:'Soporte visual · Ventas',      url:null, done:false },
+      { id:'voicebot',  name:'Voicebot / IVR',      desc:'Automatización de voz',        url:null, done:false },
+      { id:'voz-async', name:'Mensajes de voz',     desc:'Asíncrono · Cercano',          url:null, done:false },
+    ]
+  },
+  {
+    label:'Chat en web y app', cols:2,
+    canales:[
+      { id:'livechat', name:'Live chat',         desc:'Humano en tiempo real', url:null, done:false },
+      { id:'chatbot',  name:'Chatbot',            desc:'Reglas o IA generativa', url:null, done:false },
+      { id:'push',     name:'Push notifications', desc:'App y web',              url:null, done:false },
+      { id:'inapp',    name:'In-app messaging',   desc:'Dentro del producto',    url:null, done:false },
+    ]
+  },
+];
+
+function renderLayers(){
+  document.getElementById('layer-pills').innerHTML = LAYERS.map(l =>
+    `<span class="layer-pill ${l.active?'active':'locked'}">${l.label}</span>`
+  ).join('');
+}
+
+function renderMap(){
+  document.getElementById('canal-map').innerHTML = CATS.map(cat => `
+    <div class="cat-block">
+      <p class="cat-label">${cat.label}</p>
+      <div class="canal-grid canal-grid-${cat.cols}">
+        ${cat.canales.map(c => `
+          <div class="canal-card ${c.done?'done':'soon'}"
+               ${c.done ? `onclick="window.open('${c.url}','_blank')"` : ''}>
+            <span class="canal-badge ${c.done?'badge-done':'badge-soon'}">${c.done?'Publicado':'Próx.'}</span>
+            <p class="canal-name">${c.name}</p>
+            <p class="canal-desc">${c.desc}</p>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderProgress(){
+  const all = CATS.flatMap(c=>c.canales);
+  const done = all.filter(c=>c.done).length;
+  const pct = Math.round(done/all.length*100);
+  document.getElementById('progress-bar').style.width = pct+'%';
+  document.getElementById('progress-label').textContent = `${done} de ${all.length} canales publicados`;
+}
+
+renderLayers();
+renderMap();
+renderProgress();
+</script>
